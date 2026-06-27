@@ -10,6 +10,10 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File;
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
+    if (file.type !== 'application/pdf') {
+      return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     console.log(`Processing PDF: ${file.name}, size: ${buffer.length} bytes`);
@@ -17,17 +21,23 @@ export async function POST(req: NextRequest) {
     // Extract text locally using pdf-parse — no API call
     let pdfText = '';
     try {
+      // Dynamic import avoids top-level require issues with pdf-parse
       const pdfParse = (await import('pdf-parse')).default;
       const pdfData = await pdfParse(buffer);
       pdfText = pdfData.text;
       console.log(`Extracted ${pdfText.length} characters from PDF`);
     } catch (pdfErr) {
       console.error('PDF parse error:', pdfErr);
-      return NextResponse.json({ error: 'Failed to extract text from PDF' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to extract text from PDF. Make sure it is not a scanned image PDF.' }, { status: 500 });
     }
 
     if (!pdfText.trim()) {
-      return NextResponse.json({ error: 'No text found in PDF (scanned/image PDFs are not supported)' }, { status: 400 });
+      return NextResponse.json({ error: 'No text found in PDF. Scanned/image PDFs are not supported.' }, { status: 400 });
+    }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'GROQ_API_KEY not configured on server' }, { status: 500 });
     }
 
     // Use Groq to extract German vocabulary from the text
@@ -35,7 +45,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY || ''}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
@@ -46,7 +56,7 @@ export async function POST(req: NextRequest) {
             content: `You are a German language assistant. Extract ALL German words and phrases from the provided text.
 Return ONLY a valid JSON array with no markdown fences, no explanation, nothing else.
 Format: [{"german":"word","english":"translation","example":"German sentence","exampleTranslation":"English translation","type":"noun|verb|adjective|phrase|adverb"}]
-For nouns include gender: "der Hund", "die Katze", "das Kind".
+For nouns include gender in the german field: "der Hund", "die Katze", "das Kind".
 Extract every single German word you can find. If there are no German words, return [].`,
           },
           {
@@ -65,32 +75,39 @@ Extract every single German word you can find. If there are no German words, ret
         const clean = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
         words = JSON.parse(clean);
         if (!Array.isArray(words)) words = [];
-      } catch { words = []; }
+      } catch {
+        words = [];
+      }
+    } else {
+      const errText = await response.text();
+      console.error('Groq error during PDF extraction:', errText);
     }
 
     // Save to Supabase
     const docId = Date.now().toString();
-    try {
-      const { error: docError } = await supabaseAdmin
-        .from('pdf_documents')
-        .insert({ id: docId, name: file.name, word_count: words.length });
+    if (supabaseAdmin) {
+      try {
+        const { error: docError } = await supabaseAdmin
+          .from('pdf_documents')
+          .insert({ id: docId, name: file.name, word_count: words.length });
 
-      if (!docError && words.length > 0) {
-        const batchSize = 100;
-        for (let i = 0; i < words.length; i += batchSize) {
-          const batch = words.slice(i, i + batchSize).map((w: any) => ({
-            doc_id: docId,
-            german: w.german || '',
-            english: w.english || '',
-            example: w.example || null,
-            example_translation: w.exampleTranslation || null,
-            type: w.type || null,
-          }));
-          await supabaseAdmin.from('pdf_words').insert(batch);
+        if (!docError && words.length > 0) {
+          const batchSize = 100;
+          for (let i = 0; i < words.length; i += batchSize) {
+            const batch = words.slice(i, i + batchSize).map((w: any) => ({
+              doc_id: docId,
+              german: w.german || '',
+              english: w.english || '',
+              example: w.example || null,
+              example_translation: w.exampleTranslation || null,
+              type: w.type || null,
+            }));
+            await supabaseAdmin.from('pdf_words').insert(batch);
+          }
         }
+      } catch (dbErr) {
+        console.error('DB error (non-fatal):', dbErr);
       }
-    } catch (dbErr) {
-      console.error('DB error (non-fatal):', dbErr);
     }
 
     return NextResponse.json({
@@ -99,7 +116,7 @@ Extract every single German word you can find. If there are no German words, ret
       fileName: file.name,
       wordCount: words.length,
       docId,
-      rawText: pdfText.substring(0, 50000), // for TTS playback in browser
+      rawText: pdfText.substring(0, 50000),
     });
   } catch (error) {
     console.error('Upload error:', error);

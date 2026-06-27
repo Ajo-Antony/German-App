@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const { messages, system } = await req.json();
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'GROQ_API_KEY not set' }, { status: 500 });
+    }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY || 'your_groq_api_key_here'}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
@@ -33,6 +41,7 @@ export async function POST(req: NextRequest) {
       content: [{ type: 'text', text: data.choices?.[0]?.message?.content || '' }],
     });
   } catch (error) {
+    console.error('AI route error:', error);
     return NextResponse.json({ error: 'Failed to call AI' }, { status: 500 });
   }
 }
