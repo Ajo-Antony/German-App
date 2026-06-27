@@ -14,7 +14,9 @@ import { vocabulary, phrases, VocabWord, Phrase, VocabCategory } from '@/data/vo
 function speak(text: string, lang = 'de-DE', rate = 0.85) {
   if (typeof window === 'undefined') return;
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  // For alphabet entries like "A a", "B b" — only speak the uppercase letter
+  const speakText = /^[A-ZÄÖÜa-zäöü] [a-zäöü]$/.test(text.trim()) ? text.trim()[0] : text;
+  const u = new SpeechSynthesisUtterance(speakText);
   u.lang = lang;
   u.rate = rate;
   u.pitch = 1;
@@ -25,7 +27,7 @@ function speak(text: string, lang = 'de-DE', rate = 0.85) {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Tab = 'home' | 'speaking' | 'flashcards' | 'quiz' | 'milestones' | 'pdf';
+type Tab = 'home' | 'speaking' | 'flashcards' | 'quiz' | 'milestones' | 'pdf' | 'translate';
 type SpeakLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 type ChatMsg = { role: 'user' | 'assistant'; content: string };
 interface PdfWord { german: string; english: string; example?: string; exampleTranslation?: string; type?: string; }
@@ -101,6 +103,7 @@ export default function App() {
         {tab === 'speaking'   && <SpeakingTab addMilestone={addMilestone} />}
         {tab === 'flashcards' && <FlashcardsTab />}
         {tab === 'quiz'       && <QuizTab />}
+        {tab === 'translate'  && <TranslateTab />}
         {tab === 'pdf'        && <PdfTab pdfDocs={pdfDocs} setPdfDocs={setPdfDocs} onRefresh={refreshPdfDocs} />}
         {tab === 'milestones' && <MilestonesTab milestones={milestones} />}
       </main>
@@ -156,6 +159,7 @@ function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: 'home',       icon: <Home size={20} />,      label: 'Home' },
     { id: 'speaking',   icon: <Mic size={20} />,       label: 'Speaking' },
     { id: 'flashcards', icon: <Layers size={20} />,    label: 'Cards' },
+    { id: 'translate',  icon: <Globe size={20} />,     label: 'Translate' },
     { id: 'quiz',       icon: <Brain size={20} />,     label: 'Quiz' },
     { id: 'pdf',        icon: <FileText size={20} />,  label: 'PDF' },
   ];
@@ -794,6 +798,301 @@ function PdfTab({ pdfDocs, setPdfDocs, onRefresh }: { pdfDocs: PdfDoc[]; setPdfD
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── TRANSLATE TAB ────────────────────────────────────────────────────────────
+function splitSentences(text: string): string[] {
+  const parts = text.match(/[^.!?\n]+[.!?]+[\s]*/g) || [];
+  const joined = parts.map(s => s.trim()).filter(Boolean);
+  if (joined.length === 0) return [text.trim()];
+  // catch any trailing text not ending in punctuation
+  const covered = joined.join(' ');
+  const leftover = text.slice(covered.length).trim();
+  if (leftover) joined.push(leftover);
+  return joined;
+}
+
+function speakText(text: string, locale: string, onEnd?: () => void) {
+  if (typeof window === 'undefined') return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = locale; u.rate = 0.88; u.pitch = 1;
+  const voices = window.speechSynthesis.getVoices();
+  const match = voices.find(v => v.lang === locale) || voices.find(v => v.lang.startsWith(locale.split('-')[0]));
+  if (match) u.voice = match;
+  if (onEnd) { u.onend = onEnd; u.onerror = onEnd; }
+  window.speechSynthesis.speak(u);
+}
+
+function TranslateTab() {
+  const [input, setInput]             = useState('');
+  const [result, setResult]           = useState('');
+  const [direction, setDirection]     = useState<'de-en' | 'en-de'>('de-en');
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState('');
+  const [copied, setCopied]           = useState(false);
+  const [activeSentence, setActive]   = useState<number | null>(null); // null=none, -1=input, -2=all
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fromLocale = direction === 'de-en' ? 'de-DE' : 'en-US';
+  const toLocale   = direction === 'de-en' ? 'en-US' : 'de-DE';
+  const fromLang   = direction === 'de-en' ? 'German'  : 'English';
+  const toLang     = direction === 'de-en' ? 'English' : 'German';
+
+  // Auto-translate after 900 ms pause
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!input.trim()) { setResult(''); setError(''); return; }
+    debounceRef.current = setTimeout(() => { doTranslate(input.trim()); }, 900);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [input, direction]);
+
+  const doTranslate = async (text: string) => {
+    setLoading(true); setError(''); setActive(null);
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system: `You are a precise translator. Translate from ${fromLang} to ${toLang}. Return ONLY the translation — no notes, no quotes, no explanations. Preserve sentence structure and line breaks exactly.`,
+          messages: [{ role: 'user', content: text }],
+        }),
+      });
+      const data = await res.json();
+      setResult(data.content?.[0]?.text?.trim() || '');
+    } catch { setError('Translation failed. Please check your connection.'); }
+    setLoading(false);
+  };
+
+  const swap = () => {
+    window.speechSynthesis.cancel(); setActive(null);
+    setDirection(d => d === 'de-en' ? 'en-de' : 'de-en');
+    setInput(result); setResult(''); setError('');
+  };
+
+  const clear = () => {
+    window.speechSynthesis.cancel(); setActive(null);
+    setInput(''); setResult(''); setError('');
+    textareaRef.current?.focus();
+  };
+
+  const handleSpeakInput = () => {
+    if (activeSentence === -1) { window.speechSynthesis.cancel(); setActive(null); return; }
+    if (!input.trim()) return;
+    setActive(-1);
+    speakText(input, fromLocale, () => setActive(null));
+  };
+
+  const handleSpeakAll = () => {
+    if (activeSentence === -2) { window.speechSynthesis.cancel(); setActive(null); return; }
+    if (!result) return;
+    setActive(-2);
+    speakText(result, toLocale, () => setActive(null));
+  };
+
+  const handleSpeakSentence = (sentence: string, idx: number) => {
+    if (activeSentence === idx) { window.speechSynthesis.cancel(); setActive(null); return; }
+    setActive(idx);
+    speakText(sentence, toLocale, () => setActive(null));
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard?.writeText(result).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+
+  const sentences = result ? splitSentences(result) : [];
+
+  // ── shared micro-styles
+  const iconBtn = (active: boolean, color = 'var(--gold)'): React.CSSProperties => ({
+    background: active ? 'rgba(255,255,255,0.08)' : 'none',
+    border: 'none', borderRadius: 8, padding: 7, cursor: 'pointer',
+    color: active ? color : 'var(--muted)', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', transition: 'all 0.15s',
+  });
+
+  return (
+    <div style={{ paddingBottom: 8 }}>
+
+      {/* ══ LANGUAGE BAR ══ */}
+      <div style={{
+        display: 'flex', alignItems: 'stretch',
+        background: 'linear-gradient(180deg,#1a0c04,#120804)',
+        border: '1px solid var(--border)', borderRadius: 14,
+        marginBottom: 12, overflow: 'hidden',
+      }}>
+        {/* FROM label */}
+        <div style={{
+          flex: 1, padding: '13px 10px', textAlign: 'center',
+          fontWeight: 800, fontSize: 14, fontFamily: 'Georgia,serif',
+          color: 'var(--gold-bright)', letterSpacing: '0.01em',
+          borderRight: '1px solid var(--border)',
+        }}>
+          {direction === 'de-en' ? '🇩🇪  German' : '🇬🇧  English'}
+        </div>
+
+        {/* SWAP */}
+        <button onClick={swap} title="Swap languages" style={{
+          background: 'linear-gradient(180deg,var(--gold-bright),var(--gold-dim))',
+          border: 'none', width: 48, cursor: 'pointer',
+          fontWeight: 900, fontSize: 20, color: '#0a0a0f',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, transition: 'filter 0.15s',
+        }}>⇄</button>
+
+        {/* TO label */}
+        <div style={{
+          flex: 1, padding: '13px 10px', textAlign: 'center',
+          fontWeight: 800, fontSize: 14, fontFamily: 'Georgia,serif',
+          color: 'var(--gold-bright)', letterSpacing: '0.01em',
+          borderLeft: '1px solid var(--border)',
+        }}>
+          {direction === 'de-en' ? '🇬🇧  English' : '🇩🇪  German'}
+        </div>
+      </div>
+
+      {/* ══ TWO PANELS ══ */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'stretch', marginBottom: 8 }}>
+
+        {/* ── LEFT: Input panel ── */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          background: 'linear-gradient(160deg,#1e0e05,#140903)',
+          border: '1px solid var(--border-light)', borderRadius: 14, overflow: 'hidden',
+          minWidth: 0,
+        }}>
+          {/* panel header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '9px 12px 0',
+          }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Georgia,serif', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              {direction === 'de-en' ? 'German' : 'English'}
+            </span>
+            {input && <button onClick={clear} style={{ ...iconBtn(false), padding: 3 }}><X size={14} /></button>}
+          </div>
+
+          {/* textarea */}
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder={direction === 'de-en' ? 'Gib Text ein…' : 'Enter text…'}
+            style={{
+              flex: 1, width: '100%', minHeight: 180,
+              padding: '10px 12px', background: 'transparent', border: 'none',
+              color: 'var(--text)', fontSize: 16, fontFamily: 'Georgia,serif',
+              outline: 'none', resize: 'none', lineHeight: 1.6,
+              boxSizing: 'border-box',
+            } as React.CSSProperties}
+            autoFocus
+          />
+
+          {/* footer */}
+          <div style={{ padding: '6px 10px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button onClick={handleSpeakInput} disabled={!input.trim()} title="Listen" style={{ ...iconBtn(activeSentence === -1, 'var(--gold-bright)'), opacity: input.trim() ? 1 : 0.35 }}>
+              <Volume2 size={18} style={{ color: activeSentence === -1 ? 'var(--gold-bright)' : undefined }} />
+            </button>
+            <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Georgia,serif' }}>{input.length}</span>
+          </div>
+        </div>
+
+        {/* ── RIGHT: Result panel ── */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          background: 'linear-gradient(160deg,#0c160a,#08100606)',
+          border: '1px solid rgba(94,203,138,0.25)', borderRadius: 14, overflow: 'hidden',
+          minWidth: 0,
+        }}>
+          {/* panel header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px 0' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#5ecb8a', fontFamily: 'Georgia,serif', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              {direction === 'de-en' ? 'English' : 'German'}
+            </span>
+            {result && (
+              <button onClick={handleSpeakAll} title={activeSentence === -2 ? 'Stop' : 'Listen all'} style={{ ...iconBtn(activeSentence === -2, '#5ecb8a') }}>
+                <Volume2 size={16} style={{ color: activeSentence === -2 ? '#5ecb8a' : undefined }} />
+              </button>
+            )}
+          </div>
+
+          {/* result body */}
+          <div style={{ flex: 1, padding: '10px 12px', overflowY: 'auto', minHeight: 180 }}>
+            {loading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {[90,75,60].map((w,i) => (
+                  <div key={i} className="shimmer" style={{ height: 18, borderRadius: 5, width: `${w}%` }} />
+                ))}
+              </div>
+            )}
+
+            {error && !loading && (
+              <p style={{ color: '#e07060', fontFamily: 'Georgia,serif', fontSize: 13 }}>{error}</p>
+            )}
+
+            {!result && !loading && !error && (
+              <p style={{ color: 'var(--muted)', fontFamily: 'Georgia,serif', fontStyle: 'italic', fontSize: 14 }}>
+                Translation…
+              </p>
+            )}
+
+            {/* Sentences */}
+            {result && !loading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {sentences.map((s, i) => {
+                  const active = activeSentence === i;
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => handleSpeakSentence(s, i)}
+                      title="Tap to hear"
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 8,
+                        padding: '7px 8px', borderRadius: 9, cursor: 'pointer',
+                        background: active ? 'rgba(94,203,138,0.12)' : 'transparent',
+                        border: `1px solid ${active ? 'rgba(94,203,138,0.35)' : 'transparent'}`,
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {/* speaker dot */}
+                      <div style={{
+                        flexShrink: 0, width: 24, height: 24, borderRadius: '50%', marginTop: 1,
+                        background: active ? '#5ecb8a' : 'rgba(94,203,138,0.13)',
+                        border: `1px solid ${active ? '#5ecb8a' : 'rgba(94,203,138,0.3)'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.15s',
+                      }}>
+                        <Volume2 size={11} style={{ color: active ? '#08100606' : '#5ecb8a' }} />
+                      </div>
+                      <span style={{
+                        fontSize: 15, fontFamily: 'Georgia,serif', lineHeight: 1.65, flex: 1,
+                        color: active ? '#8de0b0' : 'var(--parchment)',
+                        transition: 'color 0.15s',
+                      }}>{s}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* footer */}
+          {result && !loading && (
+            <div style={{ padding: '6px 10px', borderTop: '1px solid rgba(94,203,138,0.12)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={handleCopy} style={{ ...iconBtn(copied, '#5ecb8a'), gap: 4, fontSize: 11, fontFamily: 'Georgia,serif', padding: '5px 10px' }}>
+                <Check size={12} style={{ color: copied ? '#5ecb8a' : undefined }} />
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* hint */}
+      <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 11, fontFamily: 'Georgia,serif' }}>
+        Auto-translates as you type · tap any sentence 🔊 to hear it
+      </p>
     </div>
   );
 }
