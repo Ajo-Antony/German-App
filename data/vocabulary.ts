@@ -1,5 +1,5 @@
 export type VocabLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-export type VocabCategory = 'Basics' | 'Travel' | 'Food & Drink' | 'Business' | 'Numbers' | 'Adjectives' | 'Nouns' | 'Sentences' | 'PDF';
+export type VocabCategory = 'Basics' | 'Travel' | 'Food & Drink' | 'Business' | 'Numbers' | 'Adjectives' | 'Nouns' | 'Sentences' | 'Alphabet' | 'PDF';
 
 export interface VocabWord {
   id: string;
@@ -400,6 +400,40 @@ export const vocabulary: VocabWord[] = [
   { id: 's13', german: 'Darf ich Ihnen vorstellen?', english: 'May I introduce you to...?', category: 'Sentences', level: 'B1', type: 'phrase' , example: 'Darf ich Ihnen vorstellen?', exampleTranslation: 'May I introduce you?'},
   { id: 's14', german: 'Ich nehme gerne einen Kaffee, wenn Sie auch einen möchten.', english: 'I\'d gladly have a coffee if you\'d like one too.', category: 'Sentences', level: 'B2', type: 'phrase' , example: 'Ich nehme gerne einen Kaffee, wenn Sie auch einen möchten.', exampleTranslation: 'I would love a coffee if you would like one too.'},
   { id: 's15', german: 'Das hängt davon ab, was du machen möchtest.', english: 'That depends on what you want to do.', category: 'Sentences', level: 'B1', type: 'phrase' , example: 'Das hängt davon ab, was du machen möchtest.', exampleTranslation: 'That depends on what you want to do.'},
+
+  // ── ALPHABET ──────────────────────────────────────────────────────────────
+  { id: 'al1',  german: 'A a', english: 'A — like "ah" in "father"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'ah', example: 'der Apfel', exampleTranslation: 'the apple — A as in Apfel' },
+  { id: 'al2',  german: 'B b', english: 'B — like English "b" in "book"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'beh', example: 'das Buch', exampleTranslation: 'the book — B as in Buch' },
+  { id: 'al3',  german: 'C c', english: 'C — "ts" before e/i, "k" before a/o/u', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'tseh', example: 'der Computer', exampleTranslation: 'the computer — C as in Computer' },
+  { id: 'al4',  german: 'D d', english: 'D — like English "d" in "door"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'deh', example: 'danke', exampleTranslation: 'thank you — D as in danke' },
+  { id: 'al5',  german: 'E e', english: 'E — like "ay" in "say" (short: like "e" in "bed")', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'eh', example: 'das Ei', exampleTranslation: 'the egg — E as in Ei' },
+  { id: 'al6',  german: 'F f', english: 'F — like English "f" in "fish"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'eff', example: 'die Familie', exampleTranslation: 'the family — F as in Familie' },
+  { id: 'al7',  german: 'G g', english: 'G — like "g" in "good" (never soft like "j")', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'geh', example: 'gut', exampleTranslation: 'good — G as in gut' },
+  { id: 'al8',  german: 'H h', english: 'H — breathy "h" like in "hat"; silent after vowels', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'hah', example: 'Hallo', exampleTranslation: 'hello — H as in Hallo' },
+  { id: 'al9',  german: 'I i', english: 'I — like "ee" in "see" (short: like "i" in "bit")', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'ih', example: 'ich', exampleTranslation: 'I — I as in ich' },
+  { id: 'al10', german: 'J j', english: 'J — like English "y" in "yes"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'yot', example: 'ja', exampleTranslation: 'yes — J as in ja' },
+  { id: 'al11', german: 'K k', english: 'K — like English "k" in "king"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'kah', example: 'die Katze', exampleTranslation: 'the cat — K as in Katze' },
+  { id: 'al12', german: 'L l', english: 'L — like English "l" in "love"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'ell', example: 'lecker', exampleTranslation: 'delicious — L as in lecker' },
+  { id: 'al13', german: 'M m', english: 'M — like English "m" in "mother"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'emm', example: 'die Mutter', exampleTranslation: 'the mother — M as in Mutter' },
+  { id: 'al14', german: 'N n', english: 'N — like English "n" in "name"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'enn', example: 'nein', exampleTranslation: 'no — N as in nein' },
+  { id: 'al15', german: 'O o', english: 'O — like "o" in "more" (short: like "o" in "hot")', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'oh', example: 'das Obst', exampleTranslation: 'the fruit — O as in Obst' },
+  { id: 'al16', german: 'P p', english: 'P — like English "p" in "park"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'peh', example: 'der Pass', exampleTranslation: 'the passport — P as in Pass' },
+  { id: 'al17', german: 'Q q', english: 'Q — always followed by "u", sounds like "kv"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'koo', example: 'die Quelle', exampleTranslation: 'the source / spring — Q as in Quelle' },
+  { id: 'al18', german: 'R r', english: 'R — guttural, made in the throat (like French "r")', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'err', example: 'rot', exampleTranslation: 'red — R as in rot' },
+  { id: 'al19', german: 'S s', english: 'S — like "z" before vowels; like "s" in "sun" elsewhere', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'ess', example: 'die Sonne', exampleTranslation: 'the sun — S as in Sonne' },
+  { id: 'al20', german: 'T t', english: 'T — like English "t" in "table"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'teh', example: 'der Tisch', exampleTranslation: 'the table — T as in Tisch' },
+  { id: 'al21', german: 'U u', english: 'U — like "oo" in "moon" (short: like "u" in "put")', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'oo', example: 'die Uhr', exampleTranslation: 'the clock — U as in Uhr' },
+  { id: 'al22', german: 'V v', english: 'V — like English "f" in "father" (not "v"!)', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'fow', example: 'der Vater', exampleTranslation: 'the father — V as in Vater' },
+  { id: 'al23', german: 'W w', english: 'W — like English "v" in "voice"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'veh', example: 'das Wasser', exampleTranslation: 'the water — W as in Wasser' },
+  { id: 'al24', german: 'X x', english: 'X — like "ks" in "fox"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'iks', example: 'die Xylophon', exampleTranslation: 'the xylophone — X as in Xylophon' },
+  { id: 'al25', german: 'Y y', english: 'Y — like German "ü" (rare, mostly in loanwords)', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'üpsilon', example: 'der Typ', exampleTranslation: 'the type / guy — Y as in Typ' },
+  { id: 'al26', german: 'Z z', english: 'Z — like "ts" in "bits"', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'tset', example: 'der Zug', exampleTranslation: 'the train — Z as in Zug' },
+
+  // ── UMLAUTS & ß ───────────────────────────────────────────────────────────
+  { id: 'al27', german: 'Ä ä', english: 'Ä — like "e" in "bed" (modified A with umlaut)', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'eh (Umlaut)', example: 'der Bär', exampleTranslation: 'the bear — Ä as in Bär' },
+  { id: 'al28', german: 'Ö ö', english: 'Ö — like "u" in "burn" (rounded lips, say "e")', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'öh (Umlaut)', example: 'schön', exampleTranslation: 'beautiful — Ö as in schön' },
+  { id: 'al29', german: 'Ü ü', english: 'Ü — like "ee" with rounded lips (no English equivalent)', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'üh (Umlaut)', example: 'tschüss', exampleTranslation: 'bye — Ü as in Tschüss' },
+  { id: 'al30', german: 'ß', english: 'ß (Eszett) — like double "ss", only lowercase, only in German', category: 'Alphabet', level: 'A1', type: 'phrase', pronunciation: 'ess-tset', example: 'die Straße', exampleTranslation: 'the street — ß as in Straße' },
 ];
 
 export const getVocabByCategory = (category: VocabCategory) =>

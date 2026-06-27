@@ -372,6 +372,7 @@ function SpeakingTab({ addMilestone }: { addMilestone: (id: string, german: stri
 // ─── FLASHCARDS TAB ───────────────────────────────────────────────────────────
 function FlashcardsTab() {
   const categories: { id: VocabCategory; icon: React.ReactNode; label: string }[] = [
+    { id: 'Alphabet',    icon: <GraduationCap size={15} />, label: 'Alphabet' },
     { id: 'Basics',      icon: <Globe size={15} />,       label: 'Basics' },
     { id: 'Travel',      icon: <Target size={15} />,      label: 'Travel' },
     { id: 'Food & Drink',icon: <Coffee size={15} />,      label: 'Food & Drink' },
@@ -382,7 +383,7 @@ function FlashcardsTab() {
     { id: 'Sentences',   icon: <MessageSquare size={15} />,label: 'Sentences' },
   ];
 
-  const [cat, setCat] = useState<VocabCategory>('Basics');
+  const [cat, setCat] = useState<VocabCategory>('Alphabet');
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [search, setSearch] = useState('');
