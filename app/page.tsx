@@ -1163,9 +1163,23 @@ function NotesTab() {
     switch (block.type) {
       case 'text':
         return (
-          <p key={idx} style={{ ...blockStyle, color: 'var(--parchment)', fontSize: 14, lineHeight: 1.75, fontFamily: 'Georgia, serif' }}>
-            {block.text}
-          </p>
+          <div key={idx} style={{ ...blockStyle, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <p style={{ color: 'var(--parchment)', fontSize: 14, lineHeight: 1.75, fontFamily: 'Georgia, serif', margin: 0, flex: 1 }}>
+              {block.text}
+            </p>
+            <button
+              onClick={() => speak(block.text || '', 'de-DE')}
+              title="Listen"
+              style={{
+                background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)',
+                borderRadius: '50%', width: 26, height: 26, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--gold)', marginTop: 2,
+              }}
+            >
+              <Volume2 size={11} />
+            </button>
+          </div>
         );
       case 'subheading':
         return (
@@ -1182,9 +1196,24 @@ function NotesTab() {
             borderLeft: '3px solid var(--gold)',
             borderRadius: 8,
             padding: '10px 14px',
+            display: 'flex', alignItems: 'flex-start', gap: 8,
           }}>
-            <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 12, fontFamily: 'Georgia, serif' }}>💡 TIP &nbsp;</span>
-            <span style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.6, fontFamily: 'Georgia, serif' }}>{block.text}</span>
+            <div style={{ flex: 1 }}>
+              <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 12, fontFamily: 'Georgia, serif' }}>💡 TIP &nbsp;</span>
+              <span style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.6, fontFamily: 'Georgia, serif' }}>{block.text}</span>
+            </div>
+            <button
+              onClick={() => speak(block.text || '', 'de-DE')}
+              title="Listen"
+              style={{
+                background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)',
+                borderRadius: '50%', width: 26, height: 26, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--gold)', marginTop: 1,
+              }}
+            >
+              <Volume2 size={11} />
+            </button>
           </div>
         );
       case 'example':
@@ -1197,21 +1226,52 @@ function NotesTab() {
             borderRadius: 8,
             padding: '10px 14px',
           }}>
-            <div style={{ color: '#9ee', fontSize: 11, fontWeight: 700, marginBottom: 6, fontFamily: 'Georgia, serif' }}>✏️ EXAMPLES</div>
-            <pre style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.75, fontFamily: 'Georgia, serif', whiteSpace: 'pre-wrap', margin: 0 }}>
-              {block.text}
-            </pre>
+            <div style={{ color: '#9ee', fontSize: 11, fontWeight: 700, marginBottom: 8, fontFamily: 'Georgia, serif' }}>✏️ EXAMPLES</div>
+            {(block.text || '').split('\n').filter(l => l.trim()).map((line, li) => (
+              <div key={li} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <span style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.6, fontFamily: 'Georgia, serif', flex: 1 }}>
+                  {line}
+                </span>
+                <button
+                  onClick={() => speak(line, 'de-DE')}
+                  title="Listen"
+                  style={{
+                    background: 'rgba(94,203,138,0.15)', border: '1px solid rgba(94,203,138,0.3)',
+                    borderRadius: '50%', width: 26, height: 26, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: '#5ecb8a',
+                  }}
+                >
+                  <Volume2 size={11} />
+                </button>
+              </div>
+            ))}
           </div>
         );
       case 'list':
         return (
-          <ul key={idx} style={{ ...blockStyle, paddingLeft: 20, margin: 0 }}>
+          <div key={idx} style={{ ...blockStyle, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {(block.items || []).map((item, i) => (
-              <li key={i} style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.75, fontFamily: 'Georgia, serif', marginBottom: 4 }}>
-                {item}
-              </li>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: 'var(--gold)', fontSize: 12, flexShrink: 0, marginTop: 1 }}>▸</span>
+                <span style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.6, fontFamily: 'Georgia, serif', flex: 1 }}>
+                  {item}
+                </span>
+                <button
+                  onClick={() => speak(item, 'de-DE')}
+                  title="Listen"
+                  style={{
+                    background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)',
+                    borderRadius: '50%', width: 26, height: 26, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: 'var(--gold)',
+                  }}
+                >
+                  <Volume2 size={11} />
+                </button>
+              </div>
             ))}
-          </ul>
+          </div>
         );
       case 'table':
         return (
@@ -1234,26 +1294,62 @@ function NotesTab() {
                         {h}
                       </th>
                     ))}
+                    <th style={{
+                      padding: '9px 8px',
+                      background: 'linear-gradient(180deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.08) 100%)',
+                      borderBottom: '1px solid var(--border)',
+                      width: 36,
+                    }} />
                   </tr>
                 </thead>
               )}
               <tbody>
-                {(block.rows || []).map((row, ri) => (
-                  <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-                    {row.map((cell, ci) => (
-                      <td key={ci} style={{
-                        padding: '8px 12px',
-                        color: ci === 0 ? 'var(--parchment)' : 'var(--muted)',
-                        fontWeight: ci === 0 ? 600 : 400,
+                {(block.rows || []).map((row, ri) => {
+                  // Build the text to speak: join all cells with " — "
+                  const speakText = row.join(' — ');
+                  // First cell is likely German — speak it with German voice; if no German detected, speak full row
+                  const germanCell = row[0] || '';
+                  return (
+                    <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                      {row.map((cell, ci) => (
+                        <td key={ci} style={{
+                          padding: '8px 12px',
+                          color: ci === 0 ? 'var(--parchment)' : 'var(--muted)',
+                          fontWeight: ci === 0 ? 600 : 400,
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          verticalAlign: 'middle',
+                          lineHeight: 1.5,
+                        }}>
+                          {cell}
+                        </td>
+                      ))}
+                      <td style={{
+                        padding: '4px 8px',
                         borderBottom: '1px solid rgba(255,255,255,0.04)',
-                        verticalAlign: 'top',
-                        lineHeight: 1.5,
+                        verticalAlign: 'middle',
+                        textAlign: 'center',
                       }}>
-                        {cell}
+                        <button
+                          onClick={() => speak(germanCell, 'de-DE')}
+                          title="Listen (German)"
+                          style={{
+                            background: 'rgba(201,168,76,0.12)',
+                            border: '1px solid rgba(201,168,76,0.25)',
+                            borderRadius: '50%',
+                            width: 28, height: 28,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--gold)',
+                            flexShrink: 0,
+                            transition: 'background 0.15s',
+                          }}
+                        >
+                          <Volume2 size={12} />
+                        </button>
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1378,23 +1474,6 @@ function NotesTab() {
                         {isSectionOpen && (
                           <div style={{ padding: '4px 20px 20px 28px' }}>
                             {section.content.map((block, i) => renderBlock(block, i))}
-                            <button
-                              onClick={() => speak(section.title, 'de-DE')}
-                              style={{
-                                marginTop: 8,
-                                padding: '6px 14px',
-                                background: 'linear-gradient(180deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.06) 100%)',
-                                border: '1px solid var(--border-light)',
-                                borderRadius: 20,
-                                color: 'var(--gold)',
-                                fontSize: 12,
-                                cursor: 'pointer',
-                                fontFamily: 'Georgia, serif',
-                                display: 'flex', alignItems: 'center', gap: 5,
-                              }}
-                            >
-                              <Volume2 size={12} /> Listen to section title
-                            </button>
                           </div>
                         )}
                       </div>
