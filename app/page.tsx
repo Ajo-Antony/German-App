@@ -9,6 +9,7 @@ import {
   GraduationCap, Target, Loader
 } from 'lucide-react';
 import { vocabulary, phrases, VocabWord, Phrase, VocabCategory } from '@/data/vocabulary';
+import { noteChapters, NoteChapter, NoteSection, NoteBlock } from '@/data/notes';
 
 // ─── TTS utility ─────────────────────────────────────────────────────────────
 function speak(text: string, lang = 'de-DE', rate = 0.85) {
@@ -27,7 +28,7 @@ function speak(text: string, lang = 'de-DE', rate = 0.85) {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Tab = 'home' | 'speaking' | 'flashcards' | 'quiz' | 'milestones' | 'pdf' | 'translate';
+type Tab = 'home' | 'speaking' | 'flashcards' | 'quiz' | 'milestones' | 'pdf' | 'translate' | 'notes';
 type SpeakLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 type ChatMsg = { role: 'user' | 'assistant'; content: string };
 interface PdfWord { german: string; english: string; example?: string; exampleTranslation?: string; type?: string; }
@@ -106,6 +107,7 @@ export default function App() {
         {tab === 'translate'  && <TranslateTab />}
         {tab === 'pdf'        && <PdfTab pdfDocs={pdfDocs} setPdfDocs={setPdfDocs} onRefresh={refreshPdfDocs} />}
         {tab === 'milestones' && <MilestonesTab milestones={milestones} />}
+        {tab === 'notes'      && <NotesTab />}
       </main>
       <BottomNav tab={tab} setTab={setTab} />
     </div>
@@ -159,6 +161,7 @@ function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: 'home',       icon: <Home size={20} />,      label: 'Home' },
     { id: 'speaking',   icon: <Mic size={20} />,       label: 'Speaking' },
     { id: 'flashcards', icon: <Layers size={20} />,    label: 'Cards' },
+    { id: 'notes',      icon: <BookOpen size={20} />,  label: 'Notes' },
     { id: 'translate',  icon: <Globe size={20} />,     label: 'Translate' },
     { id: 'quiz',       icon: <Brain size={20} />,     label: 'Quiz' },
     { id: 'pdf',        icon: <FileText size={20} />,  label: 'PDF' },
@@ -193,6 +196,7 @@ function HomeTab({ setTab, milestones }: { setTab: (t: Tab) => void; milestones:
   const features = [
     { tab: 'speaking'   as Tab, icon: '🗣️', title: 'Speaking Practice',      desc: 'Record & get AI feedback on your pronunciation',       color: 'var(--red)' },
     { tab: 'flashcards' as Tab, icon: '📚', title: 'Vocabulary Flashcards',  desc: '300+ words with audio, examples, and gender tips',     color: '#7ab8e8' },
+    { tab: 'notes'      as Tab, icon: '📖', title: 'Grammar Notes',          desc: 'Complete A1–B2 notes: grammar, tables, tips & more',   color: '#b48adc' },
     { tab: 'quiz'       as Tab, icon: '🧠', title: 'AI Vocab Quiz',           desc: 'Chat with Dieter — your personal German tutor',        color: 'var(--gold)' },
     { tab: 'pdf'        as Tab, icon: '📄', title: 'PDF Word Library',        desc: 'Upload PDFs, extract words and listen to them aloud',  color: '#5ecb8a' },
   ];
@@ -1127,7 +1131,288 @@ function MilestonesTab({ milestones }: { milestones: Milestone[] }) {
   );
 }
 
-// ─── SHARED ───────────────────────────────────────────────────────────────────
+// ─── NOTES TAB ────────────────────────────────────────────────────────────────
+function NotesTab() {
+  const [search, setSearch] = useState('');
+  const [selectedLevel, setSelectedLevel] = useState<string>('All');
+  const [expandedChapter, setExpandedChapter] = useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+
+  const levels = ['All', 'A1', 'A2', 'B1', 'B2', 'Reference'];
+  const levelColors: Record<string, string> = {
+    A1: '#5ecb8a', A2: '#7ab8e8', B1: 'var(--gold)', B2: 'var(--red)', Reference: '#b48adc',
+  };
+
+  const filtered = noteChapters.filter(ch => {
+    const matchLevel = selectedLevel === 'All' || ch.level === selectedLevel;
+    const matchSearch = search === '' ||
+      ch.title.toLowerCase().includes(search.toLowerCase()) ||
+      ch.sections.some(s =>
+        s.title.toLowerCase().includes(search.toLowerCase()) ||
+        s.content.some(b =>
+          (b.text || '').toLowerCase().includes(search.toLowerCase()) ||
+          (b.items || []).some(i => i.toLowerCase().includes(search.toLowerCase())) ||
+          (b.rows || []).some(r => r.some(c => c.toLowerCase().includes(search.toLowerCase())))
+        )
+      );
+    return matchLevel && matchSearch;
+  });
+
+  function renderBlock(block: NoteBlock, idx: number) {
+    const blockStyle: React.CSSProperties = { marginBottom: 14 };
+    switch (block.type) {
+      case 'text':
+        return (
+          <p key={idx} style={{ ...blockStyle, color: 'var(--parchment)', fontSize: 14, lineHeight: 1.75, fontFamily: 'Georgia, serif' }}>
+            {block.text}
+          </p>
+        );
+      case 'subheading':
+        return (
+          <p key={idx} style={{ ...blockStyle, color: 'var(--gold)', fontWeight: 700, fontSize: 14, fontFamily: 'Georgia, serif', marginTop: 18 }}>
+            {block.text}
+          </p>
+        );
+      case 'tip':
+        return (
+          <div key={idx} style={{
+            ...blockStyle,
+            background: 'linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(201,168,76,0.06) 100%)',
+            border: '1px solid rgba(201,168,76,0.3)',
+            borderLeft: '3px solid var(--gold)',
+            borderRadius: 8,
+            padding: '10px 14px',
+          }}>
+            <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 12, fontFamily: 'Georgia, serif' }}>💡 TIP &nbsp;</span>
+            <span style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.6, fontFamily: 'Georgia, serif' }}>{block.text}</span>
+          </div>
+        );
+      case 'example':
+        return (
+          <div key={idx} style={{
+            ...blockStyle,
+            background: 'linear-gradient(135deg, rgba(94,203,138,0.08) 0%, rgba(94,203,138,0.03) 100%)',
+            border: '1px solid rgba(94,203,138,0.25)',
+            borderLeft: '3px solid #5ecb8a',
+            borderRadius: 8,
+            padding: '10px 14px',
+          }}>
+            <div style={{ color: '#9ee', fontSize: 11, fontWeight: 700, marginBottom: 6, fontFamily: 'Georgia, serif' }}>✏️ EXAMPLES</div>
+            <pre style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.75, fontFamily: 'Georgia, serif', whiteSpace: 'pre-wrap', margin: 0 }}>
+              {block.text}
+            </pre>
+          </div>
+        );
+      case 'list':
+        return (
+          <ul key={idx} style={{ ...blockStyle, paddingLeft: 20, margin: 0 }}>
+            {(block.items || []).map((item, i) => (
+              <li key={i} style={{ color: 'var(--parchment)', fontSize: 13, lineHeight: 1.75, fontFamily: 'Georgia, serif', marginBottom: 4 }}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        );
+      case 'table':
+        return (
+          <div key={idx} style={{ ...blockStyle, overflowX: 'auto', borderRadius: 8, border: '1px solid var(--border)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, fontFamily: 'Georgia, serif' }}>
+              {block.headers && (
+                <thead>
+                  <tr>
+                    {block.headers.map((h, i) => (
+                      <th key={i} style={{
+                        padding: '9px 12px',
+                        textAlign: 'left',
+                        color: 'var(--gold)',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        background: 'linear-gradient(180deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.08) 100%)',
+                        borderBottom: '1px solid var(--border)',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {(block.rows || []).map((row, ri) => (
+                  <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    {row.map((cell, ci) => (
+                      <td key={ci} style={{
+                        padding: '8px 12px',
+                        color: ci === 0 ? 'var(--parchment)' : 'var(--muted)',
+                        fontWeight: ci === 0 ? 600 : 400,
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        verticalAlign: 'top',
+                        lineHeight: 1.5,
+                      }}>
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div>
+      <SectionHeader icon="📖" title="Grammar Notes" subtitle="Complete A1–B2 notes from your study guide" />
+
+      {/* Search */}
+      <div style={{ marginBottom: 16 }}>
+        <input
+          type="text"
+          placeholder="Search grammar, vocabulary, tips..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={S.input}
+        />
+      </div>
+
+      {/* Level filter */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+        {levels.map(lv => (
+          <button
+            key={lv}
+            onClick={() => setSelectedLevel(lv)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 20,
+              border: selectedLevel === lv ? '1px solid var(--gold)' : '1px solid var(--border)',
+              background: selectedLevel === lv
+                ? 'linear-gradient(180deg, rgba(201,168,76,0.25) 0%, rgba(201,168,76,0.12) 100%)'
+                : 'linear-gradient(180deg, #1a0c04 0%, #120804 100%)',
+              color: selectedLevel === lv ? 'var(--gold-bright)' : 'var(--muted)',
+              fontSize: 13,
+              fontWeight: selectedLevel === lv ? 700 : 400,
+              cursor: 'pointer',
+              fontFamily: 'Georgia, serif',
+              transition: 'all 0.2s',
+            }}
+          >
+            {lv === 'All' ? '📋 All' : lv}
+          </button>
+        ))}
+      </div>
+
+      {/* Chapters */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {filtered.length === 0 && (
+          <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--muted)', fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
+            No chapters found for "{search}"
+          </div>
+        )}
+        {filtered.map(chapter => {
+          const isChapterOpen = expandedChapter === chapter.id;
+          const levelColor = levelColors[chapter.level] || 'var(--muted)';
+          return (
+            <div key={chapter.id} className="card" style={{ overflow: 'hidden' }}>
+              {/* Chapter header */}
+              <button
+                onClick={() => {
+                  setExpandedChapter(isChapterOpen ? null : chapter.id);
+                  setExpandedSection(null);
+                }}
+                style={{
+                  width: '100%', padding: '16px 20px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 22 }}>{chapter.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--parchment)', fontFamily: 'Georgia, serif' }}>
+                      {chapter.title}
+                    </div>
+                    <div style={{ marginTop: 3 }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                        background: `${levelColor}22`, color: levelColor, border: `1px solid ${levelColor}44`,
+                        fontFamily: 'Georgia, serif',
+                      }}>
+                        {chapter.level}
+                      </span>
+                      <span style={{ color: 'var(--muted)', fontSize: 11, marginLeft: 8, fontFamily: 'Georgia, serif' }}>
+                        {chapter.sections.length} section{chapter.sections.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <span style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform 0.2s', display: 'block', transform: isChapterOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+              </button>
+
+              {/* Chapter sections */}
+              {isChapterOpen && (
+                <div style={{ borderTop: '1px solid var(--border)' }}>
+                  {chapter.sections.map(section => {
+                    const isSectionOpen = expandedSection === section.id;
+                    return (
+                      <div key={section.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <button
+                          onClick={() => setExpandedSection(isSectionOpen ? null : section.id)}
+                          style={{
+                            width: '100%', padding: '12px 20px 12px 28px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            background: isSectionOpen ? 'rgba(201,168,76,0.05)' : 'none',
+                            border: 'none', cursor: 'pointer', textAlign: 'left',
+                            transition: 'background 0.2s',
+                          }}
+                        >
+                          <span style={{ color: isSectionOpen ? 'var(--gold)' : 'var(--parchment)', fontSize: 14, fontWeight: isSectionOpen ? 700 : 500, fontFamily: 'Georgia, serif' }}>
+                            {section.title}
+                          </span>
+                          <span style={{ color: 'var(--muted)', fontSize: 14, transition: 'transform 0.2s', display: 'block', transform: isSectionOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+                        </button>
+
+                        {isSectionOpen && (
+                          <div style={{ padding: '4px 20px 20px 28px' }}>
+                            {section.content.map((block, i) => renderBlock(block, i))}
+                            <button
+                              onClick={() => speak(section.title, 'de-DE')}
+                              style={{
+                                marginTop: 8,
+                                padding: '6px 14px',
+                                background: 'linear-gradient(180deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.06) 100%)',
+                                border: '1px solid var(--border-light)',
+                                borderRadius: 20,
+                                color: 'var(--gold)',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                fontFamily: 'Georgia, serif',
+                                display: 'flex', alignItems: 'center', gap: 5,
+                              }}
+                            >
+                              <Volume2 size={12} /> Listen to section title
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ height: 20 }} />
+    </div>
+  );
+}
+
+
 function SectionHeader({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
   return (
     <div style={{ marginBottom: 24 }}>
